@@ -120,27 +120,43 @@ sorted_coefficients <- sorted_pre_coeff[order(abs(pre_coeff), decreasing = TRUE)
 preliminary_model[[4]]
 
 
+######## Missing Data Plot function -------------------
+set.seed(123)
+
+make_simple_MDplot <- function(ds_comp = revamped, ds_mis = revamped) {
+  ds_comp$missX <- is.na(ds_mis$`question_bbi_2016wave4_basicincome_awareness`)
+  ggplot(ds_comp, aes(x = age, y = weight, col = missX)) +
+    geom_point()
+}
+
+
 # Creating the missing values ---------------------------------------------
 
 # Creating missing values using MAR method
 x_mar_10 <- delete_MAR_censoring(X, 0.1, colnames(X)[8], colnames(X)[9])
 y_mar_10 <- as.data.frame(cbind(y, x_mar_10))
+make_simple_MDplot(ds_mis = y_mar_10)
 
 x_mar_20 <- delete_MAR_censoring(X, 0.2, colnames(X)[8], colnames(X)[9])
 y_mar_20 <- as.data.frame(cbind(y, x_mar_20))
+make_simple_MDplot(ds_mis = y_mar_20)
 
 x_mar_50 <- delete_MAR_censoring(X, 0.5, colnames(X)[8], colnames(X)[9])
 y_mar_50 <- as.data.frame(cbind(y, x_mar_50))
+make_simple_MDplot(ds_mis = y_mar_50)
 
 # Creating missing values using MCAR method
 x_mcar_10 <- delete_MCAR(X, .1, colnames(X)[8])
 y_mcar_10 <- as.data.frame(cbind(y, x_mcar_10))
+make_simple_MDplot(ds_mis = y_mcar_10)
 
 x_mcar_20 <- delete_MCAR(X, .2, colnames(X)[8])
 y_mcar_20 <- as.data.frame(cbind(y, x_mcar_20))
+make_simple_MDplot(ds_mis = y_mcar_20)
 
 x_mcar_50 <- delete_MCAR(X, .5, colnames(X)[8])
 y_mcar_50 <- as.data.frame(cbind(y, x_mcar_50))
+make_simple_MDplot(ds_mis = y_mcar_50)
 
 
 # Inserting Missing Values by the Imputation methods ----------------------
@@ -323,3 +339,47 @@ model_knn_mcar_50 <-
   model_evaluate(initial_data = dummyfy(data = df_knn_mcar_50))
 model_knn_mcar_50[[4]] -> knn_mcar_50
 
+
+# Table of the results ----------------------------------------------------
+
+mar_call <- rep("MAR", times = 4)
+mcar_call <- rep("MCAR", times = 4)
+m_type <- c(rep(c(mar_call,mcar_call), times = 3))
+
+m_percent <- c(rep("10", times = 8), rep("20", times = 8), rep("50", times = 8))
+
+imput_meth <- c(rep(c("CCA", "MI", "HD", "KNN"), times = 6))
+
+result_tab <- data.frame(m_type, m_percent, imput_meth, c(rep(0, times= 24)),
+                         c(rep(0, times= 24)), c(rep(0, times= 24)))
+colnames(result_tab) <- c("Missing Type", "Missing Percentatge", "Imputation Method",
+                          "Accuracy", "Sensitivity", "Specificity")
+head(result_tab)
+
+the_list <- 
+  list(cca_mar_10, mi_mar_10, hd_mar_10, knn_mar_10, cca_mcar_10, mi_mcar_10, hd_mcar_10, knn_mcar_10,
+    cca_mar_20, mi_mar_20, hd_mar_20, knn_mar_20, cca_mcar_20, mi_mcar_20, hd_mcar_20, knn_mcar_20,
+    cca_mar_50, mi_mar_50, hd_mar_50, knn_mar_50, cca_mcar_50, mi_mcar_50, hd_mcar_50, knn_mcar_50)
+
+accuracy <- c()
+sensitivity <- c()
+specificity <- c()
+
+for(i in 1:24){
+  assa <- the_list[[i]]
+  acc <- assa[[3]][[1]]
+  sens <- assa[[4]][[1]]
+  spec_ <- assa[[4]][[2]]
+  
+  accuracy[i] <- acc
+  sensitivity[i] <- sens
+  specificity[i] <- spec_
+}
+
+result_tab$Accuracy <- accuracy
+result_tab$Sensitivity <- sensitivity
+result_tab$Specificity <- spec_
+
+head(result_tab)
+result_tab
+write.csv(result_tab, file = "result.csv")
